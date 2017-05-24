@@ -129,28 +129,6 @@ public class ListViewFragment extends Fragment {
             mAdapter = new SingleAdapter(getContext(), mData, R.layout.item_type1);
             mListView.setAdapter(mAdapter);
         } else if (mType == 2) {
-//            multiAdapter = new MultipleAdapter(getContext(), DataUtils.generateData(), new IMulItemViewType<MockModel>() {
-//                @Override
-//                public int getItemViewType(int position, MockModel mockModel) {
-//                    if (position % 2 == 0) {
-//                        return 0;
-//                    }
-//                    return 1;
-//                }
-//
-//                @Override
-//                public int getLayoutId(int viewType) {
-//                    if (viewType == 0) {
-//                        return R.layout.item_type1;
-//                    }
-//                    return R.layout.item_type2;
-//                }
-//
-//                @Override
-//                public int getViewTypeCount() {
-//                    return 2;
-//                }
-//            });
             mAdapter = new MultipleAdapter(getContext(), DataUtils.generateData(), null);
             mListView.setAdapter(mAdapter);
         }
