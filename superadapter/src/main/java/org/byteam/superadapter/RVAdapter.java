@@ -1,21 +1,16 @@
 package org.byteam.superadapter;
 
-import android.animation.Animator;
 import android.content.Context;
-import android.os.Build;
 import android.support.annotation.LayoutRes;
+import android.support.annotation.Nullable;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.Interpolator;
-import android.view.animation.LinearInterpolator;
 import android.widget.AdapterView;
-
-import org.byteam.superadapter.animation.AlphaInAnimation;
-import org.byteam.superadapter.animation.BaseAnimation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,8 +20,8 @@ import java.util.List;
  * <p>
  * Created by Cheney on 16/3/30.
  */
-abstract class RecyclerSupportAdapter<T> extends RecyclerView.Adapter<SuperViewHolder>
-        implements IViewBindData<T, SuperViewHolder>, IAnimation, ILayoutManager, IHeaderFooter {
+abstract class RVAdapter<T> extends RecyclerView.Adapter<SuperViewHolder>
+        implements IViewBindData<T, SuperViewHolder>, ILayoutManager, IHeaderFooter {
 
     final String TAG = "SuperAdapter";
 
@@ -34,10 +29,11 @@ abstract class RecyclerSupportAdapter<T> extends RecyclerView.Adapter<SuperViewH
     List<T> mData;
 
     int mLayoutResId;
+    LayoutInflater mLayoutInflater;
     IMulItemViewType<T> mMulItemViewType;
 
-    private OnItemClickListener mOnItemClickListener;
-    private OnItemLongClickListener mOnItemLongClickListener;
+    OnItemClickListener mOnItemClickListener;
+    OnItemLongClickListener mOnItemLongClickListener;
 
     RecyclerView mRecyclerView;
 
@@ -46,13 +42,6 @@ abstract class RecyclerSupportAdapter<T> extends RecyclerView.Adapter<SuperViewH
     View mHeader;
     View mFooter;
 
-    private Interpolator mInterpolator = new LinearInterpolator();
-    private long mDuration = 300;
-    private boolean mLoadAnimationEnabled;
-    private boolean mOnlyOnce = true;
-    private BaseAnimation mLoadAnimation;
-    private int mLastPosition = -1;
-
     /**
      * Constructor for single item view type.
      *
@@ -60,11 +49,12 @@ abstract class RecyclerSupportAdapter<T> extends RecyclerView.Adapter<SuperViewH
      * @param list        Data list.
      * @param layoutResId {@link android.support.annotation.LayoutRes}
      */
-    public RecyclerSupportAdapter(Context context, List<T> list, @LayoutRes int layoutResId) {
+    public RVAdapter(Context context, List<T> list, @LayoutRes int layoutResId) {
         this.mContext = context;
         this.mData = list == null ? new ArrayList<T>() : list;
         this.mLayoutResId = layoutResId;
         this.mMulItemViewType = null;
+        this.mLayoutInflater = LayoutInflater.from(context);
     }
 
     /**
@@ -74,22 +64,15 @@ abstract class RecyclerSupportAdapter<T> extends RecyclerView.Adapter<SuperViewH
      * @param list            Data list.
      * @param mulItemViewType If null, plz override {@link #offerMultiItemViewType()}.
      */
-    public RecyclerSupportAdapter(Context context, List<T> list, IMulItemViewType<T> mulItemViewType) {
+    public RVAdapter(Context context, List<T> list, IMulItemViewType<T> mulItemViewType) {
         this.mContext = context;
         this.mData = list == null ? new ArrayList<T>() : list;
         this.mMulItemViewType = mulItemViewType == null ? offerMultiItemViewType() : mulItemViewType;
+        this.mLayoutInflater = LayoutInflater.from(context);
     }
 
     public Context getContext() {
         return mContext;
-    }
-
-    /**
-     * Deprecated. Use {@link #getData()} instead.
-     */
-    @Deprecated
-    public List<T> getList() {
-        return mData;
     }
 
     public List<T> getData() {
@@ -157,29 +140,45 @@ abstract class RecyclerSupportAdapter<T> extends RecyclerView.Adapter<SuperViewH
         } else if (viewType == TYPE_FOOTER && hasFooterView()) {
             return new SuperViewHolder(getFooterView());
         } else {
-            holder = onCreate(null, parent, viewType);
-        }
-        if (!(holder.itemView instanceof AdapterView) && !(holder.itemView instanceof RecyclerView)) {
-            holder.itemView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (mOnItemClickListener != null) {
-                        mOnItemClickListener.onItemClick(v, viewType, holder.getAdapterPosition());
+            holder = generateVH(null, parent, viewType);
+            if (!(holder.itemView instanceof AdapterView) && !(holder.itemView instanceof RecyclerView)) {
+                holder.itemView.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        if (mOnItemClickListener != null) {
+                            mOnItemClickListener.onItemClick(v, viewType, holder.getAdapterPosition());
+                        }
                     }
-                }
-            });
-            holder.itemView.setOnLongClickListener(new View.OnLongClickListener() {
-                @Override
-                public boolean onLongClick(View v) {
-                    if (mOnItemLongClickListener != null) {
-                        mOnItemLongClickListener.onItemLongClick(v, viewType, holder.getAdapterPosition());
-                        return true;
+                });
+                holder.itemView.setOnLongClickListener(new View.OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View v) {
+                        if (mOnItemLongClickListener != null) {
+                            mOnItemLongClickListener.onItemLongClick(v, viewType, holder.getAdapterPosition());
+                            return true;
+                        }
+                        return false;
                     }
-                    return false;
-                }
-            });
+                });
+            }
+
+            onCreate(holder, holder.getAdapterPosition(), parent, viewType);
         }
+
         return holder;
+    }
+
+    /**
+     * @param convertView Param for BaseAdapter#getView(...)
+     */
+    SuperViewHolder generateVH(@Nullable View convertView, ViewGroup parent, int viewType) {
+        if (convertView == null) {
+            View itemView = mLayoutInflater.inflate(mMulItemViewType == null ?
+                    mLayoutResId : mMulItemViewType.getLayoutId(viewType), parent, false);
+            return SuperViewHolder.get(null, itemView);
+        } else { // When convertView != null, parent must be an AbsListView.
+            return SuperViewHolder.get(convertView, null);
+        }
     }
 
     @Override
@@ -187,7 +186,6 @@ abstract class RecyclerSupportAdapter<T> extends RecyclerView.Adapter<SuperViewH
         int viewType = getItemViewType(position);
         if (viewType != TYPE_HEADER && viewType != TYPE_FOOTER) {
             onBind(holder, viewType, position, mData.get(hasHeaderView() ? --position : position));
-            addLoadAnimation(holder); // Load animation
         }
     }
 
@@ -333,51 +331,6 @@ abstract class RecyclerSupportAdapter<T> extends RecyclerView.Adapter<SuperViewH
                                 originalSpanSizeLookup.getSpanSize(position);
                     }
                 });
-            }
-        }
-    }
-
-    /**
-     * ------------------------------------ Load animation ------------------------------------
-     */
-
-    @Override
-    public void enableLoadAnimation() {
-        enableLoadAnimation(mDuration, new AlphaInAnimation());
-    }
-
-    @Override
-    public void enableLoadAnimation(long duration, BaseAnimation animation) {
-        if (duration > 0) {
-            mDuration = duration;
-        } else {
-            Log.w(TAG, "Invalid animation duration");
-        }
-        mLoadAnimationEnabled = true;
-        mLoadAnimation = animation;
-    }
-
-    @Override
-    public void cancelLoadAnimation() {
-        mLoadAnimationEnabled = false;
-        mLoadAnimation = null;
-    }
-
-    @Override
-    public void setOnlyOnce(boolean onlyOnce) {
-        mOnlyOnce = onlyOnce;
-    }
-
-    @Override
-    public void addLoadAnimation(RecyclerView.ViewHolder holder) {
-        if (mLoadAnimationEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
-            if (!mOnlyOnce || holder.getLayoutPosition() > mLastPosition) {
-                BaseAnimation animation = mLoadAnimation == null ? new AlphaInAnimation() : mLoadAnimation;
-                for (Animator anim : animation.getAnimators(holder.itemView)) {
-                    anim.setInterpolator(mInterpolator);
-                    anim.setDuration(mDuration).start();
-                }
-                mLastPosition = holder.getLayoutPosition();
             }
         }
     }

@@ -11,7 +11,7 @@ import android.support.annotation.LayoutRes;
 public interface IMulItemViewType<T> {
 
     /**
-     * @return Will not be called if using a RecyclerView.
+     * Will not be called if using a RecyclerView.
      */
     int getViewTypeCount();
 

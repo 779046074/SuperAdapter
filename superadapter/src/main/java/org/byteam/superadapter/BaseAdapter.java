@@ -7,6 +7,7 @@ import android.support.annotation.LayoutRes;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsListView;
+import android.widget.AdapterView;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.SpinnerAdapter;
@@ -18,18 +19,17 @@ import java.util.List;
  * <p>
  * Created by Cheney on 16/6/28.
  */
-abstract class ListSupportAdapter<T> extends RecyclerSupportAdapter<T>
-        implements ListAdapter, SpinnerAdapter {
+abstract class BaseAdapter<T> extends RVAdapter<T> implements ListAdapter, SpinnerAdapter {
 
     private AbsListView mAbsListView;
 
     private DataSetObservable mDataSetObservable = new DataSetObservable();
 
-    public ListSupportAdapter(Context context, List<T> list, @LayoutRes int layoutResId) {
+    public BaseAdapter(Context context, List<T> list, @LayoutRes int layoutResId) {
         super(context, list, layoutResId);
     }
 
-    public ListSupportAdapter(Context context, List<T> list, IMulItemViewType<T> mulItemViewType) {
+    public BaseAdapter(Context context, List<T> list, IMulItemViewType<T> mulItemViewType) {
         super(context, list, mulItemViewType);
     }
 
@@ -111,10 +111,12 @@ abstract class ListSupportAdapter<T> extends RecyclerSupportAdapter<T>
         if (mAbsListView == null && parent instanceof AbsListView) {
             mAbsListView = (AbsListView) parent;
         }
-        SuperViewHolder holder = onCreate(convertView, parent, getItemViewType(position));
+        SuperViewHolder holder = generateVH(convertView, parent, getItemViewType(position));
+        if (convertView == null) {
+            onCreate(holder, position, parent, getItemViewType(position));
+        }
         T item = getItem(position);
         onBind(holder, getItemViewType(position), position, item);
-        addLoadAnimation(holder); // Load animation
         return holder.itemView;
     }
 
@@ -148,6 +150,38 @@ abstract class ListSupportAdapter<T> extends RecyclerSupportAdapter<T>
         return getCount() == 0;
     }
 
+    public void setOnItemClickListener(OnItemClickListener onItemClickListener) {
+        super.setOnItemClickListener(onItemClickListener);
+        if (mAbsListView != null) {
+            if (mOnItemClickListener != null) {
+                mAbsListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                    @Override
+                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                        mOnItemClickListener.onItemClick(view, getItemViewType(position), position);
+                    }
+                });
+            } else {
+                mAbsListView.setOnItemClickListener(null);
+            }
+        }
+    }
+
+    public void setOnItemLongClickListener(OnItemLongClickListener onItemLongClickListener) {
+        super.setOnItemLongClickListener(onItemLongClickListener);
+        if (mAbsListView != null) {
+            if (mOnItemLongClickListener != null) {
+                mAbsListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+                    @Override
+                    public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+                        mOnItemLongClickListener.onItemLongClick(view, getItemViewType(position), position);
+                        return true;
+                    }
+                });
+            } else {
+                mAbsListView.setOnItemLongClickListener(null);
+            }
+        }
+    }
 
     @Override
     public void addHeaderView(View header) {

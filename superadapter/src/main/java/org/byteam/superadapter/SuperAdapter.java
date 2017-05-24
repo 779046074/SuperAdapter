@@ -2,13 +2,10 @@ package org.byteam.superadapter;
 
 import android.content.Context;
 import android.os.AsyncTask;
-import android.support.annotation.CallSuper;
 import android.support.annotation.LayoutRes;
-import android.support.annotation.Nullable;
 import android.support.v7.util.DiffUtil;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.View;
 import android.view.ViewGroup;
 
 import java.util.List;
@@ -18,15 +15,13 @@ import java.util.List;
  * <p>
  * Created by Cheney on 16/3/30.
  */
-public abstract class SuperAdapter<T> extends ListSupportAdapter<T> implements CRUD<T> {
-    private LayoutInflater mLayoutInflater;
+public abstract class SuperAdapter<T> extends BaseAdapter<T> implements CRUD<T> {
 
     /**
      * Constructor for single itemView type.
      */
     public SuperAdapter(Context context, List<T> items, @LayoutRes int layoutResId) {
         super(context, items, layoutResId);
-        this.mLayoutInflater = LayoutInflater.from(context);
     }
 
     /**
@@ -37,17 +32,12 @@ public abstract class SuperAdapter<T> extends ListSupportAdapter<T> implements C
         this.mLayoutInflater = LayoutInflater.from(context);
     }
 
-    @CallSuper
     @Override
-    public SuperViewHolder onCreate(@Nullable View convertView, ViewGroup parent, int viewType) {
-        if (convertView == null) {
-            View itemView = mLayoutInflater.inflate(mMulItemViewType == null ?
-                    mLayoutResId : mMulItemViewType.getLayoutId(viewType), parent, false);
-            return SuperViewHolder.get(null, itemView);
-        } else { // When convertView != null, parent must be an AbsListView.
-            return SuperViewHolder.get(convertView, null);
-        }
+    public void onCreate(SuperViewHolder holder, int position, ViewGroup parent, int viewType) {
+        // Called immediately after ViewHolder generated.
+        // You can do some initial steps in this method.
     }
+
 
     /**
      * ------------------------------------ CRUD ------------------------------------
@@ -70,12 +60,6 @@ public abstract class SuperAdapter<T> extends ListSupportAdapter<T> implements C
             location++;
         notifyItemInserted(location);
         notifyDataSetHasChanged();
-    }
-
-    @Override
-    @Deprecated
-    public final void insert(int location, T item) {
-        add(location, item);
     }
 
     @Override
